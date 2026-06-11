@@ -24,6 +24,9 @@ async function run() {
     const jobsCollection = db.collection("jobs");
     const companyCollection = db.collection("companies");
     const usersCollection = db.collection("user");
+    const applicationsCollection = db.collection("applications");
+    const planCollection = db.collection("plans");
+    const subscriptionCollection = db.collection("subscription");
 
     app.get("/api/users", async (req, res) => {
       const cursor = usersCollection.find().skip(6);
@@ -61,6 +64,30 @@ async function run() {
       res.send(result);
     });
 
+    // application related apis
+    app.get("/api/applications", async (req, res) => {
+      const query = {};
+      if (req.query.applicantId) {
+        query.applicantId = req.query.applicantId;
+      }
+      if (req.query.jobId) {
+        query.jobId = req.query.jobId;
+      }
+      const cursor = applicationsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.post("/api/applications", async (req, res) => {
+      const application = req.body;
+      const newApplication = {
+        ...application,
+        createdAt: new Date(),
+      };
+      const result = await applicationsCollection.insertOne(newApplication);
+      res.send(result);
+    });
+
     // company related apis
 
     app.get("/api/companies", async (req, res) => {
@@ -88,7 +115,45 @@ async function run() {
       const result = await companyCollection.insertOne(newCompany);
       res.send(result);
     });
+    app.patch("/api/companies/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedCompany = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: updatedCompany.status,
+        },
+      };
+      const result = await companyCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+    // plans
+    app.get("/api/plans", async (req, res) => {
+      const query = {};
+      if (req.query.plan_id) {
+        query.id = req.query.plan_id;
+      }
+      const plan = await planCollection.findOne(query);
+      res.send(plan);
+    });
+    app.post("/api/subscriptions", async (req, res) => {
+      const data = req.body;
+      const newData = {
+        ...data,
+        createdAt: new Date(),
+      };
+      const result = await subscriptionCollection.insertOne(newData);
 
+      // Proactively update user's plan in user collection
+      if (data.email && data.planId) {
+        await usersCollection.updateOne(
+          { email: data.email },
+          { $set: { plan: data.planId } },
+        );
+      }
+
+      res.send(result);
+    });
     await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
