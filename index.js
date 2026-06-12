@@ -90,11 +90,11 @@ async function run() {
 
     // company related apis
 
-    app.get("/api/companies", async (req, res) => {
-      const cursor = companyCollection.find().skip(3);
-      const result = await cursor.toArray();
-      res.send(result);
-    });
+    // app.get("/api/companies", async (req, res) => {
+    //   const cursor = companyCollection.find().skip(3);
+    //   const result = await cursor.toArray();
+    //   res.send(result);
+    // });
 
     app.get("/api/my/companies", async (req, res) => {
       const query = {};
@@ -105,7 +105,20 @@ async function run() {
 
       res.send(result || {});
     });
+    app.get("/api/companies", async (req, res) => {
+      const cursor = companyCollection.find();
+      const companies = await cursor.toArray();
 
+      for (const company of companies) {
+        const filter = {
+          companyId: company._id.toString(),
+        };
+        const jobCount = await jobsCollection.countDocuments(filter);
+        company.jobCount = jobCount;
+      }
+
+      res.send(companies);
+    });
     app.post("/api/companies", async (req, res) => {
       const company = req.body;
       const newCompany = {
